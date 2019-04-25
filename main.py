@@ -20,4 +20,4 @@
 # FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
 # IN THE SOFTWARE.
 #
-from lib.plugin import Plugin  # noqa: F401
+from lib.plugin import SafeguardPlugin as Plugin  # noqa: F401
