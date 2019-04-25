@@ -51,6 +51,8 @@ class HttpClient(object):
         if data:
             data = json.dumps(data).encode("utf-8")
         request = urllib.request.Request(url=url, headers=headers, data=data)
+        if data:
+            request.add_header('Content-Type', 'application/json; charset=utf-8')
         return urllib.request.urlopen(request, context=self.__ssl_context)
 
 
@@ -130,9 +132,7 @@ def with_authentication(method):
                 return method(self, *args, **kwargs)
             else:
                 error = json.loads(err.fp.read())
-                raise SafeguardException("Request failed; {} '{}' '{}'".format(error.get('Code', ''),
-                                                                               error.get('Message', ''),
-                                                                               err))
+                raise SafeguardException("Request failed; Details: {} {}".format(err, error))
     return wrapper
 
 
@@ -173,9 +173,11 @@ class SafeguardClient(object):
         }
         url = 'https://{}/RSTS/oauth2/token'.format(self.address)
         try:
-            response = self._do_request(url=url, data=urllib.parse.urlencode(auth_data))
+            response = self._do_request(url=url, data=auth_data)
         except urllib.error.HTTPError as err:
-            raise SafeguardException("rSTS (OAuth2) authentication failed. Details: {}".format(err))
+            raise SafeguardException(
+                "rSTS (OAuth2) authentication failed. Details: {} {}".format(err, err.read().decode("utf-8"))
+            )
         else:
             if not response['success']:
                 raise SafeguardException("rSTS (OAuth2) authentication failed. Details: {}".format(response))
@@ -191,9 +193,9 @@ class SafeguardClient(object):
         headers = self._build_authorization_header(rsts_token)
         headers.update(self.CONTENT_TYPE_JSON)
         try:
-            response = self._do_request(url=url, headers=headers, data=json.dumps(auth_data))
+            response = self._do_request(url=url, headers=headers, data=auth_data)
         except urllib.error.HTTPError as err:
-            raise SafeguardException("API token request failed. Details: {}".format(err))
+            raise SafeguardException("API token request failed. Details: {} {}".format(err, err.read().decode("utf-8")))
         else:
             if response['Status'] != 'Success':
                 raise SafeguardException("API token request failed. Details: {}".format(response))
@@ -259,7 +261,7 @@ class SafeguardClient(object):
         url = self._build_url(resource, parameters)
         headers = self._build_authorization_header(self._access_token)
         headers.update(self.CONTENT_TYPE_JSON)
-        return self._do_request(url=url, headers=headers, data=json.dumps(post_data))
+        return self._do_request(url=url, headers=headers, data=post_data)
 
     def _do_request(self, url, headers={}, data=None):
         response = self.http_client.make_request(url=url, headers=headers, data=data)
