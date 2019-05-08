@@ -113,8 +113,8 @@ def test_raises_exception_if_access_request_id_is_not_presented(explicit_config,
 
 def test_session_end_should_reply_with_cookie(explicit_config, dummy_sg_client_factory):
     plugin = SafeguardPlugin(explicit_config, safeguard_client_factory=dummy_sg_client_factory)
-    result = plugin.session_ended('the_session_id', {})
-    assert result == {'cookie': {}}
+    result = plugin.session_ended('the_session_id', {'credential_checked_in': True})
+    assert result == {'cookie': {'credential_checked_in': True}}
 
 
 def test_does_not_resolve_hosts_when_resolving_turned_off(explicit_config, dummy_sg_client_factory):

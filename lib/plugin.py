@@ -81,19 +81,26 @@ class SafeguardPlugin(PluginBase):
             return self._make_response(cookie)
 
     def authentication_completed(self, session_id, cookie):
+        self._check_in(cookie)
+        return self._make_response(cookie)
+
+    def session_ended(self, session_id, cookie):
+        self._check_in(cookie)
+        return self._make_response(cookie)
+
+    def _check_in(self, cookie):
+        if cookie.get('credential_checked_in', False) is True:
+            return
         try:
             self.logger.debug("Checking in credential")
             if 'access_request_id' not in cookie:
                 raise SafeguardException('Missing access_request_id')
             safeguard = self._make_safeguard_instance(cookie)
             safeguard.checkin_credential(cookie['access_request_id'])
+            cookie['credential_checked_in'] = True
         except SafeguardException as exc:
             self.logger.error("Error checking in credential %s", exc)
             raise exc
-        return self._make_response(cookie)
-
-    def session_ended(self, session_id, cookie):
-        return self._make_response(cookie)
 
     def _get_credential(self, cookie, target_username, target_host, credential_type, kwargs):
         safeguard = self._make_safeguard_instance(cookie, **kwargs)
