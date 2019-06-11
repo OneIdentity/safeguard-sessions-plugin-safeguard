@@ -91,7 +91,7 @@ def safeguard_lock(vcr):
     yield
     # Wait for Safeguard to change password after check-in
     # When we are recording
-    if vcr.record_mode != 'none':
+    if vcr.record_mode == 'all':
         time.sleep(15)
 
 

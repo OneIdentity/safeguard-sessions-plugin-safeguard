@@ -73,7 +73,7 @@ class SafeguardPlugin(CredentialStorePlugin):
         target_username = self.connection.target_username
 
         for asset in self.assets:
-            self.logger.info('Trying to check out % for %s@%s', credential_type, target_username, asset)
+            self.logger.info('Trying to check out %s for %s@%s', credential_type, target_username, asset)
             try:
                 credential = self._get_credential_for_asset(credential_type, asset)
                 if credential_type == 'password':
