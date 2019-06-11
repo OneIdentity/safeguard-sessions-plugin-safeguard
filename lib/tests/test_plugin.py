@@ -19,34 +19,37 @@
 # FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
 # IN THE SOFTWARE.
 #
+from copy import deepcopy
 import pytest
 import unittest.mock
 from ..plugin import SafeguardPlugin
 from ..safeguard import SafeguardException
+from safeguard.sessions.plugin_impl.test_utils.plugin import (assert_plugin_hook_result,
+    check_that_data_is_serializable, minimal_parameters, update_cookies)
 
 
 @pytest.mark.interactive
 def test_checkout_password_with_gateway_credentials(gateway_config, safeguard_lock, target_username, target_host,
                                                     auth_username, auth_password):
     plugin = SafeguardPlugin(gateway_config)
-    session_id = 'the_session_id'
-    checkout_result = plugin.get_password_list(session_id=session_id,
-                                               cookie={},
-                                               session_cookie={},
-                                               target_username=target_username,
-                                               target_host=target_host,
-                                               gateway_username=auth_username,
-                                               gateway_password=auth_password)
-    checkout_result_cookie = checkout_result['cookie']
-    plugin.authentication_completed(
-        cookie={
-            'access_request_id': checkout_result_cookie['access_request_id'],
-            'access_token': checkout_result_cookie['access_token']
-        },
+
+    params = dict(
+        session_id='the_session_id',
+        cookie={},
         session_cookie={},
-        session_id=session_id
+        target_username=target_username,
+        target_host=target_host,
+        gateway_username=auth_username,
+        gateway_password=auth_password
     )
 
+    checkout_result = plugin.get_password_list(**deepcopy(params))
+
+    check_that_data_is_serializable(checkout_result)
+    update_cookies(params, checkout_result)
+    plugin.authentication_completed(**minimal_parameters(params))
+
+    checkout_result_cookie = checkout_result['cookie']
     assert 'access_request_id' in checkout_result_cookie
     assert 'access_token' in checkout_result_cookie
     assert checkout_result['passwords']  # not None and has at least 1 element
@@ -55,23 +58,22 @@ def test_checkout_password_with_gateway_credentials(gateway_config, safeguard_lo
 @pytest.mark.interactive
 def test_checkout_password_with_explicit_credentials(explicit_config, safeguard_lock, target_username, target_host):
     plugin = SafeguardPlugin(explicit_config)
-    session_id = 'the_session_id'
-    checkout_result = plugin.get_password_list(
+
+    params=dict(
         cookie={},
         session_cookie={},
-        session_id=session_id,
+        session_id='the_session_id',
         target_username=target_username,
         target_host=target_host
     )
-    checkout_result_cookie = checkout_result['cookie']
-    plugin.authentication_completed(
-        cookie={
-            'access_request_id': checkout_result_cookie['access_request_id'],
-            'access_token': checkout_result_cookie['access_token']
-        },
-        session_cookie={},
-        session_id=session_id)
 
+    checkout_result = plugin.get_password_list(**deepcopy(params))
+
+    check_that_data_is_serializable(checkout_result)
+    update_cookies(params, checkout_result)
+    plugin.authentication_completed(**minimal_parameters(params))
+
+    checkout_result_cookie = checkout_result['cookie']
     assert 'access_request_id' in checkout_result_cookie
     assert 'access_token' in checkout_result_cookie
     assert checkout_result['passwords']  # not None and has at least 1 element
@@ -80,28 +82,23 @@ def test_checkout_password_with_explicit_credentials(explicit_config, safeguard_
 @pytest.mark.interactive
 def test_checkout_password_with_token(token_config, safeguard_lock, safeguard_client, target_username, target_host):
     plugin = SafeguardPlugin(token_config)
-    session_id = 'the_session_id'
     safeguard_client.authenticate()
-    session_cookie = {
-        'token': safeguard_client.access_token
-    }
-    checkout_result = plugin.get_password_list(
-        session_id=session_id,
+
+    params = dict(
         cookie={},
+        session_cookie={'token': safeguard_client.access_token},
+        session_id='the_session_id',
         target_username=target_username,
         target_host=target_host,
-        session_cookie=session_cookie
-    )
-    checkout_result_cookie = checkout_result['cookie']
-    plugin.authentication_completed(
-        cookie= {
-            'access_request_id': checkout_result_cookie['access_request_id'],
-            'access_token': checkout_result_cookie['access_token']
-        },
-        session_cookie={},
-        session_id=session_id
     )
 
+    checkout_result = plugin.get_password_list(**deepcopy(params))
+
+    check_that_data_is_serializable(checkout_result)
+    update_cookies(params, checkout_result)
+    plugin.authentication_completed(**minimal_parameters(params))
+
+    checkout_result_cookie = checkout_result['cookie']
     assert 'access_request_id' in checkout_result_cookie
     assert 'access_token' in checkout_result_cookie
     assert checkout_result['passwords']  # not None and has at least 1 element
@@ -116,18 +113,15 @@ def test_get_password_list_returns_the_correct_response(explicit_config, dummy_s
         target_username='u1',
         target_host='h1'
     )
-    expected_result = {
+
+    assert_plugin_hook_result(result, {
         'cookie': {
             'access_token': 'the_access_token',
             'access_request_id': 'the_access_request_id',
             'account': ('the_asset_id', 'the_account_id')
         },
         'passwords': ['the_password']
-    }
-    assert result['cookie']['access_token'] == expected_result['cookie']['access_token']
-    assert result['cookie']['access_request_id'] == expected_result['cookie']['access_request_id']
-    assert result['cookie']['account'] == expected_result['cookie']['account']
-    assert result['passwords'] == expected_result['passwords']
+    })
 
 
 def test_raises_exception_if_access_request_id_is_not_presented(explicit_config, dummy_sg_client_factory):
