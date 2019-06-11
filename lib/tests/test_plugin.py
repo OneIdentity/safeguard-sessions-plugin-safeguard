@@ -118,7 +118,6 @@ def test_get_password_list_returns_the_correct_response(explicit_config, dummy_s
         'cookie': {
             'access_token': 'the_access_token',
             'access_request_id': 'the_access_request_id',
-            'account': ('the_asset_id', 'the_account_id')
         },
         'passwords': ['the_password']
     })
