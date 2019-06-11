@@ -27,13 +27,12 @@ from .safeguard import SafeguardClientFactory, SafeguardException
 
 DEFAULT_CONFIG = dedent("""
     [safeguard]
+    ip_resolving=no
+    check_host_name=yes
+    
+    [safeguard_password_authentication]
     provider=local
     use_credential=gateway
-    check_host_name=yes
-    ip_resolving=no
-    
-    [logging]
-    log_level=debug
 """)
 
 

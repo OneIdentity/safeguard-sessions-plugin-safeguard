@@ -63,6 +63,7 @@ address={}
 def explicit_config(safeguard_config, auth_username, auth_password):
     return safeguard_config + """
 ip_resolving=no
+[safeguard_password_authentication]
 use_credential=explicit
 username={username}
 password={password}
@@ -72,6 +73,7 @@ password={password}
 @pytest.fixture
 def gateway_config(safeguard_config):
     return safeguard_config + """
+[safeguard_password_authentication]
 use_credential=gateway
 """
 
@@ -79,6 +81,7 @@ use_credential=gateway
 @pytest.fixture
 def token_config(safeguard_config):
     return safeguard_config + """
+[safeguard_password_authentication]
 use_credential=token
 """
 
