@@ -32,14 +32,20 @@ def test_checkout_password_with_gateway_credentials(gateway_config, safeguard_lo
     session_id = 'the_session_id'
     checkout_result = plugin.get_password_list(session_id=session_id,
                                                cookie={},
+                                               session_cookie={},
                                                target_username=target_username,
                                                target_host=target_host,
                                                gateway_username=auth_username,
                                                gateway_password=auth_password)
     checkout_result_cookie = checkout_result['cookie']
-    plugin.authentication_completed(session_id, {
-        'access_request_id': checkout_result_cookie['access_request_id'],
-        'access_token': checkout_result_cookie['access_token']})
+    plugin.authentication_completed(
+        cookie={
+            'access_request_id': checkout_result_cookie['access_request_id'],
+            'access_token': checkout_result_cookie['access_token']
+        },
+        session_cookie={},
+        session_id=session_id
+    )
 
     assert 'access_request_id' in checkout_result_cookie
     assert 'access_token' in checkout_result_cookie
@@ -50,14 +56,21 @@ def test_checkout_password_with_gateway_credentials(gateway_config, safeguard_lo
 def test_checkout_password_with_explicit_credentials(explicit_config, safeguard_lock, target_username, target_host):
     plugin = SafeguardPlugin(explicit_config)
     session_id = 'the_session_id'
-    checkout_result = plugin.get_password_list(session_id=session_id,
-                                               cookie={},
-                                               target_username=target_username,
-                                               target_host=target_host)
+    checkout_result = plugin.get_password_list(
+        cookie={},
+        session_cookie={},
+        session_id=session_id,
+        target_username=target_username,
+        target_host=target_host
+    )
     checkout_result_cookie = checkout_result['cookie']
-    plugin.authentication_completed(session_id, {
-        'access_request_id': checkout_result_cookie['access_request_id'],
-        'access_token': checkout_result_cookie['access_token']})
+    plugin.authentication_completed(
+        cookie={
+            'access_request_id': checkout_result_cookie['access_request_id'],
+            'access_token': checkout_result_cookie['access_token']
+        },
+        session_cookie={},
+        session_id=session_id)
 
     assert 'access_request_id' in checkout_result_cookie
     assert 'access_token' in checkout_result_cookie
@@ -72,15 +85,22 @@ def test_checkout_password_with_token(token_config, safeguard_lock, safeguard_cl
     session_cookie = {
         'token': safeguard_client.access_token
     }
-    checkout_result = plugin.get_password_list(session_id=session_id,
-                                               cookie={},
-                                               target_username=target_username,
-                                               target_host=target_host,
-                                               session_cookie=session_cookie)
+    checkout_result = plugin.get_password_list(
+        session_id=session_id,
+        cookie={},
+        target_username=target_username,
+        target_host=target_host,
+        session_cookie=session_cookie
+    )
     checkout_result_cookie = checkout_result['cookie']
-    plugin.authentication_completed(session_id, {
-        'access_request_id': checkout_result_cookie['access_request_id'],
-        'access_token': checkout_result_cookie['access_token']})
+    plugin.authentication_completed(
+        cookie= {
+            'access_request_id': checkout_result_cookie['access_request_id'],
+            'access_token': checkout_result_cookie['access_token']
+        },
+        session_cookie={},
+        session_id=session_id
+    )
 
     assert 'access_request_id' in checkout_result_cookie
     assert 'access_token' in checkout_result_cookie
@@ -89,10 +109,13 @@ def test_checkout_password_with_token(token_config, safeguard_lock, safeguard_cl
 
 def test_get_password_list_returns_the_correct_response(explicit_config, dummy_sg_client_factory):
     plugin = SafeguardPlugin(explicit_config, safeguard_client_factory=dummy_sg_client_factory)
-    result = plugin.get_password_list(session_id='the_session_id',
-                                      cookie={},
-                                      target_username='u1',
-                                      target_host='h1')
+    result = plugin.get_password_list(
+        session_id='the_session_id',
+        cookie={},
+        session_cookie={},
+        target_username='u1',
+        target_host='h1'
+    )
     expected_result = {
         'cookie': {
             'access_token': 'the_access_token',
@@ -101,7 +124,10 @@ def test_get_password_list_returns_the_correct_response(explicit_config, dummy_s
         },
         'passwords': ['the_password']
     }
-    assert result == expected_result
+    assert result['cookie']['access_token'] == expected_result['cookie']['access_token']
+    assert result['cookie']['access_request_id'] == expected_result['cookie']['access_request_id']
+    assert result['cookie']['account'] == expected_result['cookie']['account']
+    assert result['passwords'] == expected_result['passwords']
 
 
 def test_raises_exception_if_access_request_id_is_not_presented(explicit_config, dummy_sg_client_factory):
@@ -111,17 +137,12 @@ def test_raises_exception_if_access_request_id_is_not_presented(explicit_config,
     assert 'Missing access_request_id' in str(exc_info)
 
 
-def test_session_end_should_reply_with_cookie(explicit_config, dummy_sg_client_factory):
-    plugin = SafeguardPlugin(explicit_config, safeguard_client_factory=dummy_sg_client_factory)
-    result = plugin.session_ended('the_session_id', {'credential_checked_in': True})
-    assert result == {'cookie': {'credential_checked_in': True}}
-
-
 def test_does_not_resolve_hosts_when_resolving_turned_off(explicit_config, dummy_sg_client_factory):
     with unittest.mock.patch('lib.plugin.HostResolver.resolve_hosts_by_ip') as m:
         plugin = SafeguardPlugin(explicit_config, safeguard_client_factory=dummy_sg_client_factory)
         plugin.get_password_list(session_id='the_session_id',
                                  cookie={},
+                                 session_cookie={},
                                  target_username='u1',
                                  target_host='1.1.1.1')
         m.assert_not_called()
@@ -133,6 +154,7 @@ def test_resolve_hosts_when_configured(explicit_config, dummy_sg_client_factory)
         plugin = SafeguardPlugin(enabled_resolving, safeguard_client_factory=dummy_sg_client_factory)
         plugin.get_password_list(session_id='the_session_id',
                                  cookie={},
+                                 session_cookie={},
                                  target_username='u1',
                                  target_host='1.1.1.1')
         m.assert_called_once_with('1.1.1.1')
