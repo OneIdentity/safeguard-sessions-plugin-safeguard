@@ -127,7 +127,11 @@ def test_get_password_list_returns_the_correct_response(explicit_config, dummy_s
 def test_raises_exception_if_access_request_id_is_not_presented(explicit_config, dummy_sg_client_factory):
     plugin = SafeguardPlugin(explicit_config, safeguard_client_factory=dummy_sg_client_factory)
     with pytest.raises(SafeguardException) as exc_info:
-        plugin.authentication_completed('the_session_id', {})
+        plugin.authentication_completed(
+            cookie={},
+            session_cookie={},
+            session_id='the_session_id'
+        )
     assert 'Missing access_request_id' in str(exc_info)
 
 

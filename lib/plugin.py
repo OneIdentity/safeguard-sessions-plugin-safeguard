@@ -21,6 +21,7 @@
 #
 from safeguard.sessions.plugin.host_resolver import HostResolver
 from safeguard.sessions.plugin.credentialstore_plugin import CredentialStorePlugin
+from safeguard.sessions.plugin.plugin_base import cookie_property, session_cookie_property
 from textwrap import dedent
 
 from .safeguard import SafeguardClientFactory, SafeguardException
@@ -85,29 +86,41 @@ class SafeguardPlugin(CredentialStorePlugin):
     def do_check_in_credential(self):
         try:
             self.logger.debug("Checking in credential")
-            if 'access_request_id' not in self.cookie:
+            if self.access_request_id is None:
                 raise SafeguardException('Missing access_request_id')
-            safeguard = self._make_safeguard_instance(self.cookie)
-            safeguard.checkin_credential(self.cookie['access_request_id'])
+            safeguard = self._make_safeguard_instance()
+            safeguard.checkin_credential(self.access_request_id)
         except SafeguardException as exc:
             self.logger.error("Error checking in credential %s", exc)
             raise exc
 
     def _get_credential(self, cookie, target_username, target_host, credential_type):
-        safeguard = self._make_safeguard_instance(cookie)
+        safeguard = self._make_safeguard_instance()
         account_id = safeguard.get_account(target_host, target_username)
         credential, access_request_id = safeguard.checkout_credential(account_id, credential_type)
         self.logger.info("Found %s for %s@%s", credential_type, target_username, target_host)
         cookie['account'] = account_id
-        cookie['access_request_id'] = access_request_id
-        cookie['access_token'] = safeguard.access_token
+        self.access_request_id = access_request_id
+        self.access_token = safeguard.access_token
         return credential
 
-    def _make_safeguard_instance(self, cookie=None):
+    def _make_safeguard_instance(self):
         safeguard = self._safeguard_client_factory.new_instance(
-            access_token=self.cookie.get('access_token'),
-            session_access_token=self.session_cookie.get('token'),
+            access_token=self.access_token,
+            session_access_token=self.token,
             gateway_username=self.connection.gateway_username,
             gateway_password=self.connection.gateway_password
         )
         return safeguard
+
+    @cookie_property
+    def access_request_id(self):
+        return None
+
+    @cookie_property
+    def access_token(self):
+        return None
+
+    @session_cookie_property
+    def token(self):
+        return None
