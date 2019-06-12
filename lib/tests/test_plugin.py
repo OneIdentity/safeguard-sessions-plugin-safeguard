@@ -141,7 +141,7 @@ def test_does_not_resolve_hosts_when_resolving_turned_off(explicit_config, dummy
                                  cookie={},
                                  session_cookie={},
                                  target_username='u1',
-                                 target_host='1.1.1.1')
+                                 target_host='2.2.2.2')
         m.assert_not_called()
 
 
@@ -153,5 +153,5 @@ def test_resolve_hosts_when_configured(explicit_config, dummy_sg_client_factory)
                                  cookie={},
                                  session_cookie={},
                                  target_username='u1',
-                                 target_host='1.1.1.1')
-        m.assert_called_once_with('1.1.1.1')
+                                 target_host='2.2.2.2')
+        m.assert_called_once_with('2.2.2.2')

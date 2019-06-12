@@ -23,7 +23,7 @@ import pytest
 import time
 import urllib.error
 
-from ..safeguard import Account, HttpClient, SafeguardClient
+from ..safeguard import Account, HttpClient, SafeguardClient, SafeguardException
 
 
 @pytest.fixture
@@ -121,7 +121,10 @@ class DummySafeguardClient(object):
         return self.__access_token
 
     def get_account(self, asset_identifier, account_name):
-        return Account(self.__asset_id, self.__account_id)
+        if asset_identifier != '2.2.2.2':
+            return Account(self.__asset_id, self.__account_id)
+        else:
+            raise SafeguardException("Unknown asset {}".format(asset_identifier))
 
     def checkout_credential(self, account, credential_type):
         return self.__password, self.__access_request_id

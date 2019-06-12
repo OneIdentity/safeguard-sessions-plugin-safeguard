@@ -45,23 +45,24 @@ class SafeguardPlugin(CredentialStorePlugin):
                                           SafeguardClientFactory.from_config(self.plugin_configuration))
         self._domain_suffix = self.plugin_configuration.get('safeguard', 'domain_suffix')
 
-    def _extract_assets(self):
+    def _generate_assets(self):
         target_domain = self.connection.target_domain
         target_host = self.connection.target_ip
-        lookup_identifiers = [target_host]
+
+        yield target_host
 
         if self.plugin_configuration.getboolean('safeguard', 'ip_resolving'):
             resolved_hosts = HostResolver.from_config(self.plugin_configuration).resolve_hosts_by_ip(target_host)
-            lookup_identifiers.extend(resolved_hosts)
+            for host in resolved_hosts:
+                yield host
 
         if target_domain:
             if self._domain_suffix:
                 target_domain = '%s.%s' % (target_domain, self._domain_suffix)
-            lookup_identifiers.append(target_domain)
+                yield target_domain
 
             if self.plugin_configuration.get('domain_asset_mapping', target_domain):
-                lookup_identifiers.append(self.plugin_configuration.get('domain_asset_mapping', target_domain))
-        return lookup_identifiers
+                yield self.plugin_configuration.get('domain_asset_mapping', target_domain)
 
     def do_get_password_list(self):
         return self._get_credential('password')
@@ -70,27 +71,22 @@ class SafeguardPlugin(CredentialStorePlugin):
         return self._get_credential('ssh-key')
 
     def _get_credential(self, credential_type):
-        target_username = self.connection.target_username
+        self.logger.info('Trying to check out %s for %s@%s', credential_type, self.account, self.asset)
+        try:
+            credential = self._get_credential_for_asset(credential_type)
+            if credential_type == 'password':
+                return {'passwords': [credential]}
+            else:
+                ssh_key_type = 'ssh-rsa'  # NOTE: ssh key type is hard-coded here...
+                return {'private_keys': [(ssh_key_type, credential)]}
+        except SafeguardException as exc:
+            self.logger.error("Error checking out %s for %s@%s: '%s'", credential_type, self.account, self.asset, exc)
 
-        for asset in self.assets:
-            self.logger.info('Trying to check out %s for %s@%s', credential_type, target_username, asset)
-            try:
-                credential = self._get_credential_for_asset(credential_type, asset)
-                if credential_type == 'password':
-                    return {'passwords': [credential]}
-                else:
-                    ssh_key_type = 'ssh-rsa'  # NOTE: ssh key type is hard-coded here...
-                    return {'private_keys': [(ssh_key_type, credential)]}
-            except SafeguardException as exc:
-                self.logger.error("Error checking out %s for %s@%s: '%s'", credential_type, target_username, asset, exc)
-
-        self.logger.error('Failed to check out %s for %s', credential_type, target_username)
-
-    def _get_credential_for_asset(self, credential_type, asset):
+    def _get_credential_for_asset(self, credential_type):
         safeguard = self._make_safeguard_instance()
-        account_id = safeguard.get_account(asset, self.connection.target_username)
+        account_id = safeguard.get_account(self.asset, self.account)
         credential, access_request_id = safeguard.checkout_credential(account_id, credential_type)
-        self.logger.info("Found %s for %s@%s", credential_type, self.connection.target_username, asset)
+        self.logger.info("Found %s for %s@%s", credential_type, self.account, self.asset)
         self.access_request_id = access_request_id
         self.access_token = safeguard.access_token
         return credential
