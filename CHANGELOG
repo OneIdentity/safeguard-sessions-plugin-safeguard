@@ -1,4 +1,4 @@
-2.0.1 2019-06-13
+2.0.2 2019-06-13
 
 No major new feature.
 
@@ -9,7 +9,6 @@ New parameter section: https_proxy.
 
 Plugin SDK version in use is 1.2.0 which provides new common base for
 credential store plugins.
-
 
 2.0.0 2019-04-25
 
