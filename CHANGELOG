@@ -1,3 +1,16 @@
+2.0.1 2019-06-13
+
+No major new feature.
+
+Authentication parameters moved to safeguard_password_authentication section.
+This means use_credential, provider, username, password.
+
+New parameter section: https_proxy.
+
+Plugin SDK version in use is 1.2.0 which provides new common base for
+credential store plugins.
+
+
 2.0.0 2019-04-25
 
 Initial release on GitHub.
