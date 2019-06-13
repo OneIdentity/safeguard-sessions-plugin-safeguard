@@ -20,24 +20,24 @@
 # IN THE SOFTWARE.
 #
 from safeguard.sessions.plugin.host_resolver import HostResolver
-from safeguard.sessions.plugin.plugin_base import PluginBase
+from safeguard.sessions.plugin.credentialstore_plugin import CredentialStorePlugin
+from safeguard.sessions.plugin.plugin_base import cookie_property, session_cookie_property
 from textwrap import dedent
 
 from .safeguard import SafeguardClientFactory, SafeguardException
 
 DEFAULT_CONFIG = dedent("""
     [safeguard]
+    ip_resolving=no
+    check_host_name=yes
+    
+    [safeguard_password_authentication]
     provider=local
     use_credential=gateway
-    check_host_name=yes
-    ip_resolving=no
-    
-    [logging]
-    log_level=debug
 """)
 
 
-class SafeguardPlugin(PluginBase):
+class SafeguardPlugin(CredentialStorePlugin):
 
     def __init__(self, configuration, safeguard_client_factory=None):
         super().__init__(configuration, DEFAULT_CONFIG)
@@ -45,86 +45,77 @@ class SafeguardPlugin(PluginBase):
                                           SafeguardClientFactory.from_config(self.plugin_configuration))
         self._domain_suffix = self.plugin_configuration.get('safeguard', 'domain_suffix')
 
-    def get_password_list(self, session_id, cookie, target_username, target_host, target_domain=None, **kwargs):
-        lookup_identifiers = [target_host]
+    def _generate_assets(self):
+        target_domain = self.connection.target_domain
+        target_host = self.connection.target_ip
+
+        yield target_host
 
         if self.plugin_configuration.getboolean('safeguard', 'ip_resolving'):
             resolved_hosts = HostResolver.from_config(self.plugin_configuration).resolve_hosts_by_ip(target_host)
-            lookup_identifiers.extend(resolved_hosts)
+            for host in resolved_hosts:
+                yield host
 
         if target_domain:
             if self._domain_suffix:
                 target_domain = '%s.%s' % (target_domain, self._domain_suffix)
-            lookup_identifiers.append(target_domain)
+                yield target_domain
 
             if self.plugin_configuration.get('domain_asset_mapping', target_domain):
-                lookup_identifiers.append(self.plugin_configuration.get('domain_asset_mapping', target_domain))
+                yield self.plugin_configuration.get('domain_asset_mapping', target_domain)
 
-        for lookup_identifier in lookup_identifiers:
-            self.logger.info('Trying to checkout password for %s@%s', target_username, lookup_identifier)
-            try:
-                credential = self._get_credential(cookie, target_username, lookup_identifier, 'password', kwargs)
-                return self._make_response(cookie, passwords=[credential, ])
-            except SafeguardException as exc:
-                self.logger.warning("Cannot check out password for %s@%s: '%s'", target_username, lookup_identifier, exc)
+    def do_get_password_list(self):
+        return self._get_credential('password')
 
-        self.logger.error('Failed to check out password for %s', target_username)
-        return self._make_response(cookie)
-
-    def get_private_key_list(self, session_id, cookie, target_username, target_host, **kwargs):
+    def _get_credential(self, credential_type):
+        self.logger.info('Trying to check out %s for %s@%s', credential_type, self.account, self.asset)
         try:
-            credential = self._get_credential(cookie, target_username, target_host, 'ssh-key', kwargs)
-            ssh_key_type = 'ssh-rsa'  # NOTE: ssh key type is hard-coded here...
-            return self._make_response(cookie, private_keys=[(ssh_key_type, credential), ])
+            credential = self._get_credential_for_asset(credential_type)
+            if credential_type == 'password':
+                return {'passwords': [credential]}
+            else:
+                ssh_key_type = 'ssh-rsa'  # NOTE: ssh key type is hard-coded here...
+                return {'private_keys': [(ssh_key_type, credential)]}
         except SafeguardException as exc:
-            self.logger.error("Error checking out ssh-key for %s@%s: '%s'", target_username, target_host, exc)
-            return self._make_response(cookie)
+            self.logger.error("Error checking out %s for %s@%s: '%s'", credential_type, self.account, self.asset, exc)
 
-    def authentication_completed(self, session_id, cookie):
-        self._check_in(cookie)
-        return self._make_response(cookie)
+    def _get_credential_for_asset(self, credential_type):
+        safeguard = self._make_safeguard_instance()
+        account_id = safeguard.get_account(self.asset, self.account)
+        credential, access_request_id = safeguard.checkout_credential(account_id, credential_type)
+        self.logger.info("Found %s for %s@%s", credential_type, self.account, self.asset)
+        self.access_request_id = access_request_id
+        self.access_token = safeguard.access_token
+        return credential
 
-    def session_ended(self, session_id, cookie):
-        self._check_in(cookie)
-        return self._make_response(cookie)
-
-    def _check_in(self, cookie):
-        if cookie.get('credential_checked_in', False) is True:
-            return
+    def do_check_in_credential(self):
         try:
             self.logger.debug("Checking in credential")
-            if 'access_request_id' not in cookie:
+            if self.access_request_id is None:
                 raise SafeguardException('Missing access_request_id')
-            safeguard = self._make_safeguard_instance(cookie)
-            safeguard.checkin_credential(cookie['access_request_id'])
-            cookie['credential_checked_in'] = True
+            safeguard = self._make_safeguard_instance()
+            safeguard.checkin_credential(self.access_request_id)
         except SafeguardException as exc:
             self.logger.error("Error checking in credential %s", exc)
             raise exc
 
-    def _get_credential(self, cookie, target_username, target_host, credential_type, kwargs):
-        safeguard = self._make_safeguard_instance(cookie, **kwargs)
-        account_id = safeguard.get_account(target_host, target_username)
-        credential, access_request_id = safeguard.checkout_credential(account_id, credential_type)
-        self.logger.info("Found %s for %s@%s", credential_type, target_username, target_host)
-        cookie['account'] = account_id
-        cookie['access_request_id'] = access_request_id
-        cookie['access_token'] = safeguard.access_token
-        return credential
-
-    def _make_safeguard_instance(self, cookie=None, session_cookie=None, gateway_username=None, gateway_password=None,
-                                 **kwargs):
-        cookie = cookie or {}
-        session_cookie = session_cookie or {}
+    def _make_safeguard_instance(self):
         safeguard = self._safeguard_client_factory.new_instance(
-            access_token=cookie.get('access_token'),
-            session_access_token=session_cookie.get('token'),
-            gateway_username=gateway_username,
-            gateway_password=gateway_password
+            access_token=self.access_token,
+            session_access_token=self.token,
+            gateway_username=self.connection.gateway_username,
+            gateway_password=self.connection.gateway_password
         )
         return safeguard
 
-    @staticmethod
-    def _make_response(cookie, **kwargs):
-        kwargs['cookie'] = cookie
-        return kwargs
+    @cookie_property
+    def access_request_id(self):
+        return None
+
+    @cookie_property
+    def access_token(self):
+        return None
+
+    @session_cookie_property
+    def token(self):
+        return None

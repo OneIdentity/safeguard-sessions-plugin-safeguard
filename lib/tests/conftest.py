@@ -23,7 +23,7 @@ import pytest
 import time
 import urllib.error
 
-from ..safeguard import Account, HttpClient, SafeguardClient
+from ..safeguard import Account, HttpClient, SafeguardClient, SafeguardException
 
 
 @pytest.fixture
@@ -63,6 +63,7 @@ address={}
 def explicit_config(safeguard_config, auth_username, auth_password):
     return safeguard_config + """
 ip_resolving=no
+[safeguard_password_authentication]
 use_credential=explicit
 username={username}
 password={password}
@@ -72,6 +73,7 @@ password={password}
 @pytest.fixture
 def gateway_config(safeguard_config):
     return safeguard_config + """
+[safeguard_password_authentication]
 use_credential=gateway
 """
 
@@ -79,6 +81,7 @@ use_credential=gateway
 @pytest.fixture
 def token_config(safeguard_config):
     return safeguard_config + """
+[safeguard_password_authentication]
 use_credential=token
 """
 
@@ -88,7 +91,7 @@ def safeguard_lock(vcr):
     yield
     # Wait for Safeguard to change password after check-in
     # When we are recording
-    if vcr.record_mode != 'none':
+    if vcr.record_mode == 'all':
         time.sleep(15)
 
 
@@ -118,7 +121,10 @@ class DummySafeguardClient(object):
         return self.__access_token
 
     def get_account(self, asset_identifier, account_name):
-        return Account(self.__asset_id, self.__account_id)
+        if asset_identifier != '2.2.2.2':
+            return Account(self.__asset_id, self.__account_id)
+        else:
+            raise SafeguardException("Unknown asset {}".format(asset_identifier))
 
     def checkout_credential(self, account, credential_type):
         return self.__password, self.__access_request_id

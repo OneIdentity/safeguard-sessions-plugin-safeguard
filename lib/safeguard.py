@@ -111,10 +111,10 @@ class SafeguardClientFactory(object):
             addresses=config.get('safeguard', 'address').split(','),
             check_host_name=config.getboolean('safeguard', 'check_host_name'),
             ca=config.get('safeguard', 'ca'),
-            credential_source=config.get('safeguard', 'use_credential'),
-            provider=config.get('safeguard', 'provider'),
-            auth_username=config.get('safeguard', 'username'),
-            auth_password=config.get('safeguard', 'password')
+            credential_source=config.get('safeguard_password_authentication', 'use_credential'),
+            provider=config.get('safeguard_password_authentication', 'provider'),
+            auth_username=config.get('safeguard_password_authentication', 'username'),
+            auth_password=config.get('safeguard_password_authentication', 'password')
         )
 
 
@@ -171,6 +171,11 @@ class SafeguardClient(object):
             'grant_type': 'password',
             'scope': 'rsts:sts:primaryproviderid:{}'.format(self._provider)
         }
+
+        self.__logger.info(
+            "Safeguard password authentication with username={} provider={}".format(self._auth_username, self._provider)
+        )
+
         url = 'https://{}/RSTS/oauth2/token'.format(self.address)
         try:
             response = self._do_request(url=url, data=auth_data)
