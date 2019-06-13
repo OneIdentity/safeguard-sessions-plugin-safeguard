@@ -67,9 +67,6 @@ class SafeguardPlugin(CredentialStorePlugin):
     def do_get_password_list(self):
         return self._get_credential('password')
 
-    def do_get_private_key_list(self):
-        return self._get_credential('ssh-key')
-
     def _get_credential(self, credential_type):
         self.logger.info('Trying to check out %s for %s@%s', credential_type, self.account, self.asset)
         try:

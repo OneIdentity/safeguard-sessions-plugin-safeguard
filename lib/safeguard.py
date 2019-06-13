@@ -171,6 +171,11 @@ class SafeguardClient(object):
             'grant_type': 'password',
             'scope': 'rsts:sts:primaryproviderid:{}'.format(self._provider)
         }
+
+        self.__logger.info(
+            "Safeguard password authentication with username={} provider={}".format(self._auth_username, self._provider)
+        )
+
         url = 'https://{}/RSTS/oauth2/token'.format(self.address)
         try:
             response = self._do_request(url=url, data=auth_data)
