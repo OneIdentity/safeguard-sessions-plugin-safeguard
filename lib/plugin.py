@@ -59,7 +59,8 @@ class SafeguardPlugin(CredentialStorePlugin):
         if target_domain:
             if self._domain_suffix:
                 target_domain = '%s.%s' % (target_domain, self._domain_suffix)
-                yield target_domain
+
+            yield target_domain
 
             if self.plugin_configuration.get('domain_asset_mapping', target_domain):
                 yield self.plugin_configuration.get('domain_asset_mapping', target_domain)
