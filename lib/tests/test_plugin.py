@@ -21,6 +21,7 @@
 #
 from copy import deepcopy
 import pytest
+from textwrap import dedent
 import unittest.mock
 from ..plugin import SafeguardPlugin
 from ..safeguard import SafeguardException
@@ -155,3 +156,55 @@ def test_resolve_hosts_when_configured(explicit_config, dummy_sg_client_factory)
                                  target_username='u1',
                                  target_host='2.2.2.2')
         m.assert_called_once_with('2.2.2.2')
+
+
+class SaveAssets(SafeguardPlugin):
+    def __init__(self, configuration, safeguard_client_factory):
+        super().__init__(configuration, safeguard_client_factory)
+        self.test_asset_list = []
+
+    def do_get_password_list(self):
+        self.test_asset_list.append(self.asset)
+
+
+def test_assets(explicit_config, dummy_sg_client_factory):
+    config = dedent("""
+        [domain_asset_mapping]
+        foo.bar = acme.com
+    """)
+
+    plugin = SaveAssets(config, dummy_sg_client_factory)
+
+    plugin.get_password_list(
+        cookie={},
+        session_cookie={},
+        target_username='u1',
+        target_host='1.1.1.1',
+        target_domain='foo.bar',
+    )
+
+    assert plugin.test_asset_list == ['1.1.1.1', 'foo.bar', 'acme.com']
+
+
+def test_assets_suffix(explicit_config, dummy_sg_client_factory):
+    config = dedent("""
+        [safeguard]
+        domain_suffix = net
+
+        [domain_asset_mapping]
+        foo.bar.net = acme.com
+    """)
+
+
+
+    plugin = SaveAssets(config, dummy_sg_client_factory)
+
+    plugin.get_password_list(
+        cookie={},
+        session_cookie={},
+        target_username='u1',
+        target_host='1.1.1.1',
+        target_domain='foo.bar',
+    )
+
+    assert plugin.test_asset_list == ['1.1.1.1', 'foo.bar.net', 'acme.com']
