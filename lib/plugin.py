@@ -31,7 +31,7 @@ DEFAULT_CONFIG = dedent("""
     ip_resolving=no
     check_host_name=yes
     
-    [safeguard_password_authentication]
+    [safeguard-password-authentication]
     provider=local
     use_credential=gateway
 """)
