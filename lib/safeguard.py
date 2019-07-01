@@ -111,10 +111,10 @@ class SafeguardClientFactory(object):
             addresses=config.get('safeguard', 'address').split(','),
             check_host_name=config.getboolean('safeguard', 'check_host_name'),
             ca=config.get('safeguard', 'ca'),
-            credential_source=config.get('safeguard_password_authentication', 'use_credential'),
-            provider=config.get('safeguard_password_authentication', 'provider'),
-            auth_username=config.get('safeguard_password_authentication', 'username'),
-            auth_password=config.get('safeguard_password_authentication', 'password')
+            credential_source=config.get('safeguard-password-authentication', 'use_credential'),
+            provider=config.get('safeguard-password-authentication', 'provider'),
+            auth_username=config.get('safeguard-password-authentication', 'username'),
+            auth_password=config.get('safeguard-password-authentication', 'password')
         )
 
 

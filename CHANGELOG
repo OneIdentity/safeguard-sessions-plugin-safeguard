@@ -2,10 +2,12 @@
 
 No major new feature.
 
-Authentication parameters moved to safeguard_password_authentication section.
-This means use_credential, provider, username, password.
+Authentication parameters moved to safeguard-password-authentication section for clarity.
+This means use_credential, provider, username, password parameters.
 
 New parameter section: https_proxy.
+
+Log level setting moved under section: logging.
 
 Plugin SDK version in use is 1.2.0 which provides new common base for
 credential store plugins.
