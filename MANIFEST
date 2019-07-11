@@ -2,5 +2,5 @@ api: 1.2
 type: credentialstore
 name: SPS_safeguard
 description: One Identity Safeguard for Privileged Passwords plugin
-version: 2.0.3
+version: 2.0.4
 entry_point: main.py

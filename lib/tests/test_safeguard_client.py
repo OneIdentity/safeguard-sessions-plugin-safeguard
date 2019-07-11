@@ -21,8 +21,10 @@
 #
 import json
 from io import StringIO
-
+from textwrap import dedent
+from safeguard.sessions.plugin.plugin_configuration import PluginConfiguration
 from ..safeguard import SafeguardClient
+from ..safeguard import SafeguardClientFactory
 
 
 class StubHttpClient(object):
@@ -51,3 +53,24 @@ def test_get_account_with_different_casing():
     })
     sg_client = SafeguardClient(http_client=http_client, address="the-address", access_token="the-token")
     assert sg_client.get_account(asset_identifier="THE.ASSET", account_name="thomas.testman")
+
+
+def test_auth_param_backwards_compatible():
+    class DummySafeguardClientFactory(SafeguardClientFactory):
+        def __init__(self, **kwargs):
+            self.saved_init_param = kwargs
+            super().__init__(**kwargs)
+
+    pc = PluginConfiguration(dedent("""
+        [safeguard]
+        address=x
+        use_credential=x1
+        provider=x2
+        username=x3
+        password=x4
+    """))
+    dummy = DummySafeguardClientFactory.from_config(pc)
+    assert dummy.saved_init_param['credential_source'] == 'x1'
+    assert dummy.saved_init_param['provider'] == 'x2'
+    assert dummy.saved_init_param['auth_username'] == 'x3'
+    assert dummy.saved_init_param['auth_password'] == 'x4'
