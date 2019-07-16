@@ -107,14 +107,17 @@ class SafeguardClientFactory(object):
 
     @classmethod
     def from_config(cls, config):
-        return SafeguardClientFactory(
+        def compatible_auth_parameter_get(parameter):
+            return config.get('safeguard', parameter) or config.get('safeguard-password-authentication', parameter)
+
+        return cls(
             addresses=config.get('safeguard', 'address').split(','),
             check_host_name=config.getboolean('safeguard', 'check_host_name'),
             ca=config.get('safeguard', 'ca'),
-            credential_source=config.get('safeguard-password-authentication', 'use_credential'),
-            provider=config.get('safeguard-password-authentication', 'provider'),
-            auth_username=config.get('safeguard-password-authentication', 'username'),
-            auth_password=config.get('safeguard-password-authentication', 'password')
+            credential_source=compatible_auth_parameter_get('use_credential'),
+            provider=compatible_auth_parameter_get('provider'),
+            auth_username=compatible_auth_parameter_get('username'),
+            auth_password=compatible_auth_parameter_get('password')
         )
 
 

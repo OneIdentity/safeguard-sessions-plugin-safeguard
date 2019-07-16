@@ -1,3 +1,9 @@
+2.0.4 2019-07-11
+
+No major new feature. Backward compatible authentication parameters.
+This means user_credential, provider, username, password may reside
+in the safeguard section of the configuration.
+
 2.0.3 2019-06-13
 
 No major new feature.
