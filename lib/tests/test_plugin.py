@@ -29,7 +29,6 @@ from safeguard.sessions.plugin_impl.test_utils.plugin import (assert_plugin_hook
     check_that_data_is_serializable, minimal_parameters, update_cookies)
 
 
-@pytest.mark.interactive
 def test_checkout_password_with_gateway_credentials(gateway_config, safeguard_lock, target_username, target_host,
                                                     auth_username, auth_password):
     plugin = SafeguardPlugin(gateway_config)
@@ -41,7 +40,8 @@ def test_checkout_password_with_gateway_credentials(gateway_config, safeguard_lo
         target_username=target_username,
         target_host=target_host,
         gateway_username=auth_username,
-        gateway_password=auth_password
+        gateway_password=auth_password,
+        protocol='SSH'
     )
 
     checkout_result = plugin.get_password_list(**deepcopy(params))
@@ -56,7 +56,6 @@ def test_checkout_password_with_gateway_credentials(gateway_config, safeguard_lo
     assert checkout_result['passwords']  # not None and has at least 1 element
 
 
-@pytest.mark.interactive
 def test_checkout_password_with_explicit_credentials(explicit_config, safeguard_lock, target_username, target_host):
     plugin = SafeguardPlugin(explicit_config)
 
@@ -65,7 +64,8 @@ def test_checkout_password_with_explicit_credentials(explicit_config, safeguard_
         session_cookie={},
         session_id='the_session_id',
         target_username=target_username,
-        target_host=target_host
+        target_host=target_host,
+        protocol='SSH'
     )
 
     checkout_result = plugin.get_password_list(**deepcopy(params))
@@ -80,7 +80,6 @@ def test_checkout_password_with_explicit_credentials(explicit_config, safeguard_
     assert checkout_result['passwords']  # not None and has at least 1 element
 
 
-@pytest.mark.interactive
 def test_checkout_password_with_token(token_config, safeguard_lock, safeguard_client, target_username, target_host):
     plugin = SafeguardPlugin(token_config)
     safeguard_client.authenticate()
@@ -91,6 +90,7 @@ def test_checkout_password_with_token(token_config, safeguard_lock, safeguard_cl
         session_id='the_session_id',
         target_username=target_username,
         target_host=target_host,
+        protocol='SSH'
     )
 
     checkout_result = plugin.get_password_list(**deepcopy(params))
@@ -112,7 +112,8 @@ def test_get_password_list_returns_the_correct_response(explicit_config, dummy_s
         cookie={},
         session_cookie={},
         target_username='u1',
-        target_host='h1'
+        target_host='h1',
+        protocol='SSH'
     )
 
     assert_plugin_hook_result(result, {
@@ -127,8 +128,8 @@ def test_get_password_list_returns_the_correct_response(explicit_config, dummy_s
 def test_raises_exception_if_access_request_id_is_not_presented(explicit_config, dummy_sg_client_factory):
     plugin = SafeguardPlugin(explicit_config, safeguard_client_factory=dummy_sg_client_factory)
     with pytest.raises(SafeguardException) as exc_info:
-        plugin.authentication_completed(
-            cookie={},
+        plugin.session_ended(
+            cookie={'account': 'x'},
             session_cookie={},
             session_id='the_session_id'
         )
@@ -138,11 +139,14 @@ def test_raises_exception_if_access_request_id_is_not_presented(explicit_config,
 def test_does_not_resolve_hosts_when_resolving_turned_off(explicit_config, dummy_sg_client_factory):
     with unittest.mock.patch('lib.plugin.HostResolver.resolve_hosts_by_ip') as m:
         plugin = SafeguardPlugin(explicit_config, safeguard_client_factory=dummy_sg_client_factory)
-        plugin.get_password_list(session_id='the_session_id',
-                                 cookie={},
-                                 session_cookie={},
-                                 target_username='u1',
-                                 target_host='2.2.2.2')
+        plugin.get_password_list(
+            session_id='the_session_id',
+            cookie={},
+            session_cookie={},
+            target_username='u1',
+            target_host='2.2.2.2',
+            protocol='SSH'
+        )
         m.assert_not_called()
 
 
@@ -150,11 +154,15 @@ def test_resolve_hosts_when_configured(explicit_config, dummy_sg_client_factory)
     enabled_resolving = explicit_config.replace('ip_resolving=no', 'ip_resolving=yes')
     with unittest.mock.patch('lib.plugin.HostResolver.resolve_hosts_by_ip') as m:
         plugin = SafeguardPlugin(enabled_resolving, safeguard_client_factory=dummy_sg_client_factory)
-        plugin.get_password_list(session_id='the_session_id',
-                                 cookie={},
-                                 session_cookie={},
-                                 target_username='u1',
-                                 target_host='2.2.2.2')
+        plugin.get_password_list(
+            session_id='the_session_id',
+            cookie={},
+            session_cookie={},
+            target_username='u1',
+            target_host='2.2.2.2',
+            protocol='SSH'
+        )
+
         m.assert_called_once_with('2.2.2.2')
 
 
@@ -181,6 +189,7 @@ def test_assets(explicit_config, dummy_sg_client_factory):
         target_username='u1',
         target_host='1.1.1.1',
         target_domain='foo.bar',
+        protocol='SSH'
     )
 
     assert plugin.test_asset_list == ['1.1.1.1', 'foo.bar', 'acme.com']
@@ -205,6 +214,7 @@ def test_assets_suffix(explicit_config, dummy_sg_client_factory):
         target_username='u1',
         target_host='1.1.1.1',
         target_domain='foo.bar',
+        protocol='SSH'
     )
 
     assert plugin.test_asset_list == ['1.1.1.1', 'foo.bar.net', 'acme.com']
