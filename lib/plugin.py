@@ -41,9 +41,7 @@ class SafeguardPlugin(CredentialStorePlugin):
 
     def __init__(self, configuration, safeguard_client_factory=None):
         super().__init__(configuration, DEFAULT_CONFIG)
-        self._safeguard_client_factory = (safeguard_client_factory or
-                                          SafeguardClientFactory.from_config(self.plugin_configuration))
-        self._domain_suffix = self.plugin_configuration.get('safeguard', 'domain_suffix')
+        self._safeguard_client_factory = safeguard_client_factory
 
     def _generate_assets(self):
         target_domain = self.connection.target_domain
@@ -57,8 +55,9 @@ class SafeguardPlugin(CredentialStorePlugin):
                 yield host
 
         if target_domain:
-            if self._domain_suffix:
-                target_domain = '%s.%s' % (target_domain, self._domain_suffix)
+            domain_suffix = self.plugin_configuration.get('safeguard', 'domain_suffix')
+            if domain_suffix:
+                target_domain = '%s.%s' % (target_domain, domain_suffix)
 
             yield target_domain
 
@@ -101,6 +100,8 @@ class SafeguardPlugin(CredentialStorePlugin):
             raise exc
 
     def _make_safeguard_instance(self):
+        if not self._safeguard_client_factory:
+            self._safeguard_client_factory = SafeguardClientFactory.from_config(self.plugin_configuration)
         safeguard = self._safeguard_client_factory.new_instance(
             access_token=self.access_token,
             session_access_token=self.token,
