@@ -1,6 +1,9 @@
 # safeguard-sessions-plugin-safeguard
 OneIdentity Safeguard credential store plugin for Safeguard for Privileged Sessions
 
+# Deprecated
+This plugin is supported but deprecated in favour of the SPP-SPS join functionality in the One Identity Safeguard product line.
+
 # Support
 - This plugin is officially supported for One Identity Safeguard for Privileged Sessions (SPS) customers with a valid maintenance contract. Feature requests and bug reports should be submitted via the regular support channel on the [One Identity Support page](https://support.oneidentity.com). Such requests are tracked and will be answered within the time frames set out in the support agreement.
 
