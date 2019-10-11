@@ -1,6 +1,7 @@
 [packages]
 
 [dev-packages]
+oneidentity-safeguard-sessions-plugin-sdk = "~=1.2.0"
 
 [requires]
 python_version = "3.6"
