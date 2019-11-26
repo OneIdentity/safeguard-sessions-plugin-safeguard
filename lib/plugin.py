@@ -30,7 +30,7 @@ DEFAULT_CONFIG = dedent("""
     [safeguard]
     ip_resolving=no
     check_host_name=yes
-    
+
     [safeguard-password-authentication]
     provider=local
     use_credential=gateway

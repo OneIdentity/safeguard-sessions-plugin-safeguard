@@ -26,7 +26,9 @@ import unittest.mock
 from ..plugin import SafeguardPlugin
 from ..safeguard import SafeguardException
 from safeguard.sessions.plugin_impl.test_utils.plugin import (assert_plugin_hook_result,
-    check_that_data_is_serializable, minimal_parameters, update_cookies)
+                                                              check_that_data_is_serializable,
+                                                              minimal_parameters,
+                                                              update_cookies)
 
 
 def test_checkout_password_with_gateway_credentials(gateway_config, safeguard_lock, target_username, target_host,
@@ -59,7 +61,7 @@ def test_checkout_password_with_gateway_credentials(gateway_config, safeguard_lo
 def test_checkout_password_with_explicit_credentials(explicit_config, safeguard_lock, target_username, target_host):
     plugin = SafeguardPlugin(explicit_config)
 
-    params=dict(
+    params = dict(
         cookie={},
         session_cookie={},
         session_id='the_session_id',
@@ -203,8 +205,6 @@ def test_assets_suffix(explicit_config, dummy_sg_client_factory):
         [domain_asset_mapping]
         foo.bar.net = acme.com
     """)
-
-
 
     plugin = SaveAssets(config, dummy_sg_client_factory)
 
