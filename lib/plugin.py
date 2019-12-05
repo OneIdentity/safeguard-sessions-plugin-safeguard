@@ -26,7 +26,8 @@ from textwrap import dedent
 
 from .safeguard import SafeguardClientFactory, SafeguardException
 
-DEFAULT_CONFIG = dedent("""
+DEFAULT_CONFIG = dedent(
+    """
     [safeguard]
     ip_resolving=no
     check_host_name=yes
@@ -34,11 +35,11 @@ DEFAULT_CONFIG = dedent("""
     [safeguard-password-authentication]
     provider=local
     use_credential=gateway
-""")
+"""
+)
 
 
 class SafeguardPlugin(CredentialStorePlugin):
-
     def __init__(self, configuration, safeguard_client_factory=None):
         super().__init__(configuration, DEFAULT_CONFIG)
         self._safeguard_client_factory = safeguard_client_factory
@@ -49,33 +50,33 @@ class SafeguardPlugin(CredentialStorePlugin):
 
         yield target_host
 
-        if self.plugin_configuration.getboolean('safeguard', 'ip_resolving'):
+        if self.plugin_configuration.getboolean("safeguard", "ip_resolving"):
             resolved_hosts = HostResolver.from_config(self.plugin_configuration).resolve_hosts_by_ip(target_host)
             for host in resolved_hosts:
                 yield host
 
         if target_domain:
-            domain_suffix = self.plugin_configuration.get('safeguard', 'domain_suffix')
+            domain_suffix = self.plugin_configuration.get("safeguard", "domain_suffix")
             if domain_suffix:
-                target_domain = '%s.%s' % (target_domain, domain_suffix)
+                target_domain = "%s.%s" % (target_domain, domain_suffix)
 
             yield target_domain
 
-            if self.plugin_configuration.get('domain_asset_mapping', target_domain):
-                yield self.plugin_configuration.get('domain_asset_mapping', target_domain)
+            if self.plugin_configuration.get("domain_asset_mapping", target_domain):
+                yield self.plugin_configuration.get("domain_asset_mapping", target_domain)
 
     def do_get_password_list(self):
-        return self._get_credential('password')
+        return self._get_credential("password")
 
     def _get_credential(self, credential_type):
-        self.logger.info('Trying to check out %s for %s@%s', credential_type, self.account, self.asset)
+        self.logger.info("Trying to check out %s for %s@%s", credential_type, self.account, self.asset)
         try:
             credential = self._get_credential_for_asset(credential_type)
-            if credential_type == 'password':
-                return {'passwords': [credential]}
+            if credential_type == "password":
+                return {"passwords": [credential]}
             else:
-                ssh_key_type = 'ssh-rsa'  # NOTE: ssh key type is hard-coded here...
-                return {'private_keys': [(ssh_key_type, credential)]}
+                ssh_key_type = "ssh-rsa"  # NOTE: ssh key type is hard-coded here...
+                return {"private_keys": [(ssh_key_type, credential)]}
         except SafeguardException as exc:
             self.logger.error("Error checking out %s for %s@%s: '%s'", credential_type, self.account, self.asset, exc)
 
@@ -92,7 +93,7 @@ class SafeguardPlugin(CredentialStorePlugin):
         try:
             self.logger.debug("Checking in credential")
             if self.access_request_id is None:
-                raise SafeguardException('Missing access_request_id')
+                raise SafeguardException("Missing access_request_id")
             safeguard = self._make_safeguard_instance()
             safeguard.checkin_credential(self.access_request_id)
         except SafeguardException as exc:
@@ -106,7 +107,7 @@ class SafeguardPlugin(CredentialStorePlugin):
             access_token=self.access_token,
             session_access_token=self.token,
             gateway_username=self.connection.gateway_username,
-            gateway_password=self.connection.gateway_password
+            gateway_password=self.connection.gateway_password,
         )
         return safeguard
 

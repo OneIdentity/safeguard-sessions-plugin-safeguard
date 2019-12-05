@@ -24,11 +24,13 @@ from .conftest import DummySafeguardClient, UnreachableSafeguardClient
 
 
 def test_cluster_client_uses_first_reachable_node():
-    scc = SafeguardClusterClient([
-        UnreachableSafeguardClient(),
-        DummySafeguardClient(asset_id='2nd_asset_id', account_id='2nd_account_id'),
-        DummySafeguardClient(asset_id='3rd_asset_id', account_id='3rd_account_id'),
-    ])
-    account = scc.get_account(asset_identifier='the_asset', account_name='the_account')
-    assert account.asset_id == '2nd_asset_id'
-    assert account.id == '2nd_account_id'
+    scc = SafeguardClusterClient(
+        [
+            UnreachableSafeguardClient(),
+            DummySafeguardClient(asset_id="2nd_asset_id", account_id="2nd_account_id"),
+            DummySafeguardClient(asset_id="3rd_asset_id", account_id="3rd_account_id"),
+        ]
+    )
+    account = scc.get_account(asset_identifier="the_asset", account_name="the_account")
+    assert account.asset_id == "2nd_asset_id"
+    assert account.id == "2nd_account_id"

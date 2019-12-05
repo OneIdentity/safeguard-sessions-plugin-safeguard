@@ -36,21 +36,16 @@ class StubHttpClient(object):
 
 
 def test_get_account_with_different_casing():
-    http_client = StubHttpClient({
-        'https://the-address/service/core/v2/Me/RequestableAssets': json.dumps([
-            {
-                'NetworkAddress': None,
-                'Name': 'the.asset',
-                'Id': 'the-asset-id',
-            }
-        ]),
-        'https://the-address/service/core/v2/Me/RequestableAssets/the-asset-id/Accounts': json.dumps([
-            {
-                'Name': 'Thomas.Testman',
-                'Id': 'the-account-id'
-            }
-        ]),
-    })
+    http_client = StubHttpClient(
+        {
+            "https://the-address/service/core/v2/Me/RequestableAssets": json.dumps(
+                [{"NetworkAddress": None, "Name": "the.asset", "Id": "the-asset-id"}]
+            ),
+            "https://the-address/service/core/v2/Me/RequestableAssets/the-asset-id/Accounts": json.dumps(
+                [{"Name": "Thomas.Testman", "Id": "the-account-id"}]
+            ),
+        }
+    )
     sg_client = SafeguardClient(http_client=http_client, address="the-address", access_token="the-token")
     assert sg_client.get_account(asset_identifier="THE.ASSET", account_name="thomas.testman")
 
@@ -61,16 +56,20 @@ def test_auth_param_backwards_compatible():
             self.saved_init_param = kwargs
             super().__init__(**kwargs)
 
-    pc = PluginConfiguration(dedent("""
+    pc = PluginConfiguration(
+        dedent(
+            """
         [safeguard]
         address=x
         use_credential=x1
         provider=x2
         username=x3
         password=x4
-    """))
+    """
+        )
+    )
     dummy = DummySafeguardClientFactory.from_config(pc)
-    assert dummy.saved_init_param['credential_source'] == 'x1'
-    assert dummy.saved_init_param['provider'] == 'x2'
-    assert dummy.saved_init_param['auth_username'] == 'x3'
-    assert dummy.saved_init_param['auth_password'] == 'x4'
+    assert dummy.saved_init_param["credential_source"] == "x1"
+    assert dummy.saved_init_param["provider"] == "x2"
+    assert dummy.saved_init_param["auth_username"] == "x3"
+    assert dummy.saved_init_param["auth_password"] == "x4"

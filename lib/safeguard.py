@@ -52,7 +52,7 @@ class HttpClient(object):
             data = json.dumps(data).encode("utf-8")
         request = urllib.request.Request(url=url, headers=headers, data=data)
         if data:
-            request.add_header('Content-Type', 'application/json; charset=utf-8')
+            request.add_header("Content-Type", "application/json; charset=utf-8")
         return urllib.request.urlopen(request, context=self.__ssl_context)
 
 
@@ -72,35 +72,31 @@ class SafeguardClientFactory(object):
         if access_token is not None:
             self.__logger.debug("Using exisiting access token to authenticate")
             auth_params = dict(access_token=access_token)
-        elif self._credential_source == 'token':
+        elif self._credential_source == "token":
             self.__logger.debug("Using existing access token from session to authenticate")
             if session_access_token is None:
-                raise SafeguardException('Access token is missing from session cookie')
+                raise SafeguardException("Access token is missing from session cookie")
             else:
                 auth_params = dict(access_token=session_access_token)
-        elif self._credential_source == 'explicit':
+        elif self._credential_source == "explicit":
             self.__logger.debug("Using explictly configured proxy user to authenticate")
             if self._auth_username is None or self._auth_password is None:
-                raise SafeguardException('Missing username or password')
+                raise SafeguardException("Missing username or password")
             else:
                 auth_params = dict(auth_username=self._auth_username, auth_password=self._auth_password)
-        elif self._credential_source == 'gateway':
+        elif self._credential_source == "gateway":
             self.__logger.debug("Using gateway user to authenticate")
             if gateway_username is None or gateway_password is None:
-                raise SafeguardException('Missing gateway credential')
+                raise SafeguardException("Missing gateway credential")
             else:
                 auth_params = dict(auth_username=gateway_username, auth_password=gateway_password)
         else:
-            raise SafeguardException('Invalid credential source: {}'.format(self._credential_source))
+            raise SafeguardException("Invalid credential source: {}".format(self._credential_source))
 
         http_client = HttpClient(ca_cert=self._ca, check_hostname=self._check_host_name)
         clients = [
-            SafeguardClient(
-                http_client=http_client,
-                address=address,
-                provider=self._provider,
-                **auth_params
-            ) for address in self._addresses
+            SafeguardClient(http_client=http_client, address=address, provider=self._provider, **auth_params)
+            for address in self._addresses
         ]
 
         return SafeguardClusterClient(clients)
@@ -108,20 +104,20 @@ class SafeguardClientFactory(object):
     @classmethod
     def from_config(cls, config):
         def compatible_auth_parameter_get(parameter):
-            return config.get('safeguard', parameter) or config.get('safeguard-password-authentication', parameter)
+            return config.get("safeguard", parameter) or config.get("safeguard-password-authentication", parameter)
 
         return cls(
-            addresses=config.get('safeguard', 'address').split(','),
-            check_host_name=config.getboolean('safeguard', 'check_host_name'),
-            ca=config.get('safeguard', 'ca'),
-            credential_source=compatible_auth_parameter_get('use_credential'),
-            provider=compatible_auth_parameter_get('provider'),
-            auth_username=compatible_auth_parameter_get('username'),
-            auth_password=compatible_auth_parameter_get('password')
+            addresses=config.get("safeguard", "address").split(","),
+            check_host_name=config.getboolean("safeguard", "check_host_name"),
+            ca=config.get("safeguard", "ca"),
+            credential_source=compatible_auth_parameter_get("use_credential"),
+            provider=compatible_auth_parameter_get("provider"),
+            auth_username=compatible_auth_parameter_get("username"),
+            auth_password=compatible_auth_parameter_get("password"),
         )
 
 
-Account = namedtuple('Account', ('asset_id', 'id'))
+Account = namedtuple("Account", ("asset_id", "id"))
 
 
 def with_authentication(method):
@@ -136,6 +132,7 @@ def with_authentication(method):
             else:
                 error = json.loads(err.fp.read())
                 raise SafeguardException("Request failed; Details: {} {}".format(err, error))
+
     return wrapper
 
 
@@ -144,10 +141,11 @@ def lowercase(value):
 
 
 class SafeguardClient(object):
-    CONTENT_TYPE_JSON = {'content-type': 'application/json'}
+    CONTENT_TYPE_JSON = {"content-type": "application/json"}
 
-    def __init__(self, http_client, address, provider='local', auth_username=None, auth_password=None,
-                 access_token=None):
+    def __init__(
+        self, http_client, address, provider="local", auth_username=None, auth_password=None, access_token=None
+    ):
         self.__logger = logging.get_logger(__name__)
         self.address = address
         self.http_client = http_client
@@ -169,17 +167,17 @@ class SafeguardClient(object):
 
     def _get_rsts_token(self):
         auth_data = {
-            'username': self._auth_username,
-            'password': self._auth_password,
-            'grant_type': 'password',
-            'scope': 'rsts:sts:primaryproviderid:{}'.format(self._provider)
+            "username": self._auth_username,
+            "password": self._auth_password,
+            "grant_type": "password",
+            "scope": "rsts:sts:primaryproviderid:{}".format(self._provider),
         }
 
         self.__logger.info(
             "Safeguard password authentication with username={} provider={}".format(self._auth_username, self._provider)
         )
 
-        url = 'https://{}/RSTS/oauth2/token'.format(self.address)
+        url = "https://{}/RSTS/oauth2/token".format(self.address)
         try:
             response = self._do_request(url=url, data=auth_data)
         except urllib.error.HTTPError as err:
@@ -187,17 +185,15 @@ class SafeguardClient(object):
                 "rSTS (OAuth2) authentication failed. Details: {} {}".format(err, err.read().decode("utf-8"))
             )
         else:
-            if not response['success']:
+            if not response["success"]:
                 raise SafeguardException("rSTS (OAuth2) authentication failed. Details: {}".format(response))
 
-            return response['access_token']
+            return response["access_token"]
 
     def _get_safeguard_token(self):
         rsts_token = self._get_rsts_token()
-        auth_data = {
-            'StsAccessToken': rsts_token
-        }
-        url = self._build_url('Token/LoginResponse')
+        auth_data = {"StsAccessToken": rsts_token}
+        url = self._build_url("Token/LoginResponse")
         headers = self._build_authorization_header(rsts_token)
         headers.update(self.CONTENT_TYPE_JSON)
         try:
@@ -205,10 +201,10 @@ class SafeguardClient(object):
         except urllib.error.HTTPError as err:
             raise SafeguardException("API token request failed. Details: {} {}".format(err, err.read().decode("utf-8")))
         else:
-            if response['Status'] != 'Success':
+            if response["Status"] != "Success":
                 raise SafeguardException("API token request failed. Details: {}".format(response))
 
-            return response['UserToken']
+            return response["UserToken"]
 
     def get_account(self, asset_identifier, account_name):
         asset_id = self._find_asset(asset_identifier)
@@ -216,47 +212,45 @@ class SafeguardClient(object):
         return Account(asset_id, account_id)
 
     def _list_assets(self):
-        return self._get('Me/RequestableAssets')
+        return self._get("Me/RequestableAssets")
 
     def _find_asset(self, asset_identifier):
         assets = self._list_assets()
         for asset in assets:
-            if lowercase(asset_identifier) in (lowercase(asset['NetworkAddress']), lowercase(asset['Name'])):
-                return asset['Id']
+            if lowercase(asset_identifier) in (lowercase(asset["NetworkAddress"]), lowercase(asset["Name"])):
+                return asset["Id"]
         raise SafeguardException("Cannot find asset '{}'".format(asset_identifier))
 
     def _list_accounts(self, asset_id):
-        return self._get('Me/RequestableAssets/{}/Accounts'.format(asset_id))
+        return self._get("Me/RequestableAssets/{}/Accounts".format(asset_id))
 
     def _find_account(self, asset_id, account_name):
         accounts = self._list_accounts(asset_id)
         for account in accounts:
-            if lowercase(account_name) == lowercase(account['Name']):
-                return account['Id']
+            if lowercase(account_name) == lowercase(account["Name"]):
+                return account["Id"]
         raise SafeguardException("Cannot find account '{}'".format(account_name))
 
     def _make_access_request(self, account):
-        return self._post('AccessRequests', {
-            "SystemId": account.asset_id,
-            "AccountId": account.id,
-            "AccessRequestType": "Password",
-        })
+        return self._post(
+            "AccessRequests", {"SystemId": account.asset_id, "AccountId": account.id, "AccessRequestType": "Password"}
+        )
 
     def _check_out_password(self, access_request_id):
-        return self._post('AccessRequests/{}/CheckOutPassword'.format(access_request_id))
+        return self._post("AccessRequests/{}/CheckOutPassword".format(access_request_id))
 
     def checkout_credential(self, account, credential_type):
-        if credential_type != 'password':
+        if credential_type != "password":
             raise SafeguardException("Only password credential type is supported: {}".format(credential_type))
 
         # FIXME: reuse previous access request ID?
         access_request = self._make_access_request(account)
-        access_request_id = access_request['Id']
+        access_request_id = access_request["Id"]
         password = self._check_out_password(access_request_id)
         return password, access_request_id
 
     def checkin_credential(self, access_request_id):
-        self._post('AccessRequests/{}/CheckIn'.format(access_request_id))
+        self._post("AccessRequests/{}/CheckIn".format(access_request_id))
 
     @with_authentication
     def _get(self, resource, parameters=()):
@@ -279,12 +273,12 @@ class SafeguardClient(object):
 
     @staticmethod
     def _build_authorization_header(token):
-        return {'authorization': 'Bearer {}'.format(token)}
+        return {"authorization": "Bearer {}".format(token)}
 
     def _build_url(self, resource, parameters=()):
-        url = 'https://{}/service/core/v2/{}'.format(self.address, resource)
+        url = "https://{}/service/core/v2/{}".format(self.address, resource)
         if parameters:
-            url += '/?' + urllib.parse.urlencode(parameters)
+            url += "/?" + urllib.parse.urlencode(parameters)
         return url
 
 
