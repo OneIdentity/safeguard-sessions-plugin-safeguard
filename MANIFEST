@@ -2,7 +2,7 @@ api: 1.2
 type: credentialstore
 name: SPS_safeguard
 description: One Identity Safeguard for Privileged Passwords plugin
-version: 2.0.5
+version: 2.0.6
 entry_point: main.py
 author_name: One Identity PAM Integration Team
 author_email: QDL.QBU-OI.RD.Safeguard.Integration@oneidentity.com
