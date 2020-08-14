@@ -1,3 +1,10 @@
+3.0.0 2020-08-18
+
+Use the new credentialstore plugin base class features to make plugin code easier to maintain.
+
+The plugin no longer resolves FQDNs from target_host parameter, instead uses the server_domain
+and server_hostname parameters as asset identifier candidates.
+
 2.0.5 2019-08-21
 
 No major new feature. Optimized use of configuration (lazy read),

@@ -33,27 +33,16 @@ from safeguard.sessions.plugin_impl.test_utils.plugin import (
 )
 
 
-def test_checkout_password_with_gateway_credentials(
-    gateway_config, safeguard_lock, target_username, target_host, auth_username, auth_password
-):
+def test_checkout_password_with_gateway_credentials(gateway_config, safeguard_lock, generate_params):
     plugin = SafeguardPlugin(gateway_config)
-
-    params = dict(
-        session_id="the_session_id",
-        cookie={},
-        session_cookie={},
-        target_username=target_username,
-        target_host=target_host,
-        gateway_username=auth_username,
-        gateway_password=auth_password,
-        protocol="SSH",
-    )
+    params = generate_params()
 
     checkout_result = plugin.get_password_list(**deepcopy(params))
 
     check_that_data_is_serializable(checkout_result)
     update_cookies(params, checkout_result)
     plugin.authentication_completed(**minimal_parameters(params))
+    plugin.session_ended(**minimal_parameters(params))
 
     checkout_result_cookie = checkout_result["cookie"]
     assert "access_request_id" in checkout_result_cookie
@@ -61,23 +50,16 @@ def test_checkout_password_with_gateway_credentials(
     assert checkout_result["passwords"]  # not None and has at least 1 element
 
 
-def test_checkout_password_with_explicit_credentials(explicit_config, safeguard_lock, target_username, target_host):
+def test_checkout_password_with_explicit_credentials(explicit_config, safeguard_lock, generate_params):
     plugin = SafeguardPlugin(explicit_config)
-
-    params = dict(
-        cookie={},
-        session_cookie={},
-        session_id="the_session_id",
-        target_username=target_username,
-        target_host=target_host,
-        protocol="SSH",
-    )
+    params = generate_params()
 
     checkout_result = plugin.get_password_list(**deepcopy(params))
 
     check_that_data_is_serializable(checkout_result)
     update_cookies(params, checkout_result)
     plugin.authentication_completed(**minimal_parameters(params))
+    plugin.session_ended(**minimal_parameters(params))
 
     checkout_result_cookie = checkout_result["cookie"]
     assert "access_request_id" in checkout_result_cookie
@@ -85,24 +67,17 @@ def test_checkout_password_with_explicit_credentials(explicit_config, safeguard_
     assert checkout_result["passwords"]  # not None and has at least 1 element
 
 
-def test_checkout_password_with_token(token_config, safeguard_lock, safeguard_client, target_username, target_host):
+def test_checkout_password_with_token(token_config, safeguard_lock, safeguard_client, generate_params):
     plugin = SafeguardPlugin(token_config)
     safeguard_client.authenticate()
-
-    params = dict(
-        cookie={},
-        session_cookie={"token": safeguard_client.access_token},
-        session_id="the_session_id",
-        target_username=target_username,
-        target_host=target_host,
-        protocol="SSH",
-    )
+    params = generate_params(session_cookie={"token": safeguard_client.access_token})
 
     checkout_result = plugin.get_password_list(**deepcopy(params))
 
     check_that_data_is_serializable(checkout_result)
     update_cookies(params, checkout_result)
     plugin.authentication_completed(**minimal_parameters(params))
+    plugin.session_ended(**minimal_parameters(params))
 
     checkout_result_cookie = checkout_result["cookie"]
     assert "access_request_id" in checkout_result_cookie
@@ -110,16 +85,10 @@ def test_checkout_password_with_token(token_config, safeguard_lock, safeguard_cl
     assert checkout_result["passwords"]  # not None and has at least 1 element
 
 
-def test_get_password_list_returns_the_correct_response(explicit_config, dummy_sg_client_factory):
+def test_get_password_list_returns_the_correct_response(explicit_config, dummy_sg_client_factory, generate_params):
     plugin = SafeguardPlugin(explicit_config, safeguard_client_factory=dummy_sg_client_factory)
-    result = plugin.get_password_list(
-        session_id="the_session_id",
-        cookie={},
-        session_cookie={},
-        target_username="u1",
-        target_host="h1",
-        protocol="SSH",
-    )
+    params = generate_params()
+    result = plugin.get_password_list(**deepcopy(params))
 
     assert_plugin_hook_result(
         result,
@@ -134,37 +103,7 @@ def test_raises_exception_if_access_request_id_is_not_presented(explicit_config,
     plugin = SafeguardPlugin(explicit_config, safeguard_client_factory=dummy_sg_client_factory)
     with pytest.raises(SafeguardException) as exc_info:
         plugin.session_ended(cookie={"account": "x"}, session_cookie={}, session_id="the_session_id")
-    assert "Missing access_request_id" in str(exc_info)
-
-
-def test_does_not_resolve_hosts_when_resolving_turned_off(explicit_config, dummy_sg_client_factory):
-    with unittest.mock.patch("lib.plugin.HostResolver.resolve_hosts_by_ip") as m:
-        plugin = SafeguardPlugin(explicit_config, safeguard_client_factory=dummy_sg_client_factory)
-        plugin.get_password_list(
-            session_id="the_session_id",
-            cookie={},
-            session_cookie={},
-            target_username="u1",
-            target_host="2.2.2.2",
-            protocol="SSH",
-        )
-        m.assert_not_called()
-
-
-def test_resolve_hosts_when_configured(explicit_config, dummy_sg_client_factory):
-    enabled_resolving = explicit_config.replace("ip_resolving=no", "ip_resolving=yes")
-    with unittest.mock.patch("lib.plugin.HostResolver.resolve_hosts_by_ip") as m:
-        plugin = SafeguardPlugin(enabled_resolving, safeguard_client_factory=dummy_sg_client_factory)
-        plugin.get_password_list(
-            session_id="the_session_id",
-            cookie={},
-            session_cookie={},
-            target_username="u1",
-            target_host="2.2.2.2",
-            protocol="SSH",
-        )
-
-        m.assert_called_once_with("2.2.2.2")
+    assert exc_info.match("Missing access_request_id")
 
 
 class SaveAssets(SafeguardPlugin):
@@ -176,48 +115,20 @@ class SaveAssets(SafeguardPlugin):
         self.test_asset_list.append(self.asset)
 
 
-def test_assets(explicit_config, dummy_sg_client_factory):
+def test_assets_suffix(explicit_config, dummy_sg_client_factory, generate_params):
     config = dedent(
         """
         [domain_asset_mapping]
-        foo.bar = acme.com
+        bar.baz=acme.com
+
+        [assets]
+        domain_suffix=baz
     """
     )
 
     plugin = SaveAssets(config, dummy_sg_client_factory)
+    params = generate_params(server_hostname="foo.bar", server_domain="bar")
 
-    plugin.get_password_list(
-        cookie={},
-        session_cookie={},
-        target_username="u1",
-        target_host="1.1.1.1",
-        target_domain="foo.bar",
-        protocol="SSH",
-    )
+    plugin.get_password_list(**deepcopy(params))
 
-    assert plugin.test_asset_list == ["1.1.1.1", "foo.bar", "acme.com"]
-
-
-def test_assets_suffix(explicit_config, dummy_sg_client_factory):
-    config = dedent(
-        """
-        [safeguard]
-        domain_suffix = net
-
-        [domain_asset_mapping]
-        foo.bar.net = acme.com
-    """
-    )
-
-    plugin = SaveAssets(config, dummy_sg_client_factory)
-
-    plugin.get_password_list(
-        cookie={},
-        session_cookie={},
-        target_username="u1",
-        target_host="1.1.1.1",
-        target_domain="foo.bar",
-        protocol="SSH",
-    )
-
-    assert plugin.test_asset_list == ["1.1.1.1", "foo.bar.net", "acme.com"]
+    assert plugin.test_asset_list == ["1.1.1.1", "foo.bar.baz", "bar.baz", "acme.com"]

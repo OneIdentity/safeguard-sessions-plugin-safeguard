@@ -19,7 +19,6 @@
 # FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
 # IN THE SOFTWARE.
 #
-from safeguard.sessions.plugin.host_resolver import HostResolver
 from safeguard.sessions.plugin.credentialstore_plugin import CredentialStorePlugin
 from safeguard.sessions.plugin.plugin_base import cookie_property, session_cookie_property
 from textwrap import dedent
@@ -29,8 +28,10 @@ from .safeguard import SafeguardClientFactory, SafeguardException
 DEFAULT_CONFIG = dedent(
     """
     [safeguard]
-    ip_resolving=no
     check_host_name=yes
+
+    [assets]
+    generator=ip, hostname, domain, domain_asset_mapping_with_suffix
 
     [safeguard-password-authentication]
     provider=local
@@ -41,32 +42,21 @@ DEFAULT_CONFIG = dedent(
 
 class SafeguardPlugin(CredentialStorePlugin):
     def __init__(self, configuration, safeguard_client_factory=None):
-        super().__init__(configuration, DEFAULT_CONFIG)
+        super().__init__(
+            configuration, defaults=DEFAULT_CONFIG, configuration_section="safeguard-password-authentication"
+        )
         self._safeguard_client_factory = safeguard_client_factory
-
-    def _generate_assets(self):
-        target_domain = self.connection.target_domain
-        target_host = self.connection.target_ip
-
-        yield target_host
-
-        if self.plugin_configuration.getboolean("safeguard", "ip_resolving"):
-            resolved_hosts = HostResolver.from_config(self.plugin_configuration).resolve_hosts_by_ip(target_host)
-            for host in resolved_hosts:
-                yield host
-
-        if target_domain:
-            domain_suffix = self.plugin_configuration.get("safeguard", "domain_suffix")
-            if domain_suffix:
-                target_domain = "%s.%s" % (target_domain, domain_suffix)
-
-            yield target_domain
-
-            if self.plugin_configuration.get("domain_asset_mapping", target_domain):
-                yield self.plugin_configuration.get("domain_asset_mapping", target_domain)
 
     def do_get_password_list(self):
         return self._get_credential("password")
+
+    def domain_asset_mapping_with_suffix(self):
+        server_domain = (
+            f"{self.connection.server_domain}.{self.domain_suffix}"
+            if self.domain_suffix
+            else self.connection.server_domain
+        )
+        return self.plugin_configuration.get("domain_asset_mapping", server_domain)
 
     def _get_credential(self, credential_type):
         self.logger.info("Trying to check out %s for %s@%s", credential_type, self.account, self.asset)
@@ -103,13 +93,21 @@ class SafeguardPlugin(CredentialStorePlugin):
     def _make_safeguard_instance(self):
         if not self._safeguard_client_factory:
             self._safeguard_client_factory = SafeguardClientFactory.from_config(self.plugin_configuration)
+
         safeguard = self._safeguard_client_factory.new_instance(
-            access_token=self.access_token,
-            session_access_token=self.token,
-            gateway_username=self.connection.gateway_username,
-            gateway_password=self.connection.gateway_password,
+            access_token=self.access_token, session_access_token=self.token, **self._get_auth_credentials()
         )
         return safeguard
+
+    def _get_auth_credentials(self):
+        credential_type = self.plugin_configuration.getienum(
+            self._configuration_section, "use_credential", ("explicit", "gateway", "token")
+        )
+        return (
+            {"auth_username": self.authentication_username, "auth_password": self.authentication_password}
+            if credential_type in ("explicit", "gateway")
+            else {"auth_username": None, "auth_password": None}
+        )
 
     @cookie_property
     def access_request_id(self):

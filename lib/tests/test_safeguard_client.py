@@ -71,5 +71,3 @@ def test_auth_param_backwards_compatible():
     dummy = DummySafeguardClientFactory.from_config(pc)
     assert dummy.saved_init_param["credential_source"] == "x1"
     assert dummy.saved_init_param["provider"] == "x2"
-    assert dummy.saved_init_param["auth_username"] == "x3"
-    assert dummy.saved_init_param["auth_password"] == "x4"

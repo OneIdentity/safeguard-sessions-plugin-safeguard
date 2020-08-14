@@ -42,13 +42,13 @@ def auth_password(site_parameters):
 
 
 @pytest.fixture
-def target_host(site_parameters):
-    return site_parameters["target_host"]
+def server_hostname(site_parameters):
+    return site_parameters["server_hostname"]
 
 
 @pytest.fixture
-def target_username(site_parameters):
-    return site_parameters["target_username"]
+def server_username(site_parameters):
+    return site_parameters["server_username"]
 
 
 @pytest.fixture
@@ -66,7 +66,6 @@ def explicit_config(safeguard_config, auth_username, auth_password):
     return (
         safeguard_config
         + """
-ip_resolving=no
 [safeguard-password-authentication]
 use_credential=explicit
 username={username}
@@ -117,6 +116,30 @@ def safeguard_client(safeguard_address, auth_username, auth_password):
         auth_username=auth_username,
         auth_password=auth_password,
     )
+
+
+@pytest.fixture
+def generate_params():
+    def _params(server_username="test_user", server_hostname="foo.bar.baz", server_domain="bar.baz", session_cookie={}):
+        return {
+            "cookie": {},
+            "session_cookie": session_cookie,
+            "session_id": "example-1",
+            "client_ip": "1.1.1.1",
+            "client_hostname": None,
+            "gateway_domain": None,
+            "gateway_username": "testauto",
+            "gateway_password": "TitkoS12",
+            "gateway_groups": None,
+            "server_username": server_username,
+            "server_ip": "1.1.1.1",
+            "server_port": 22,
+            "server_hostname": server_hostname,
+            "server_domain": server_domain,
+            "protocol": "SSH",
+        }
+
+    return _params
 
 
 class DummySafeguardClient(object):
