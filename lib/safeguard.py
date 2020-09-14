@@ -57,18 +57,16 @@ class HttpClient(object):
 
 
 class SafeguardClientFactory(object):
-    def __init__(self, addresses, check_host_name, ca, credential_source, provider, auth_username, auth_password):
+    def __init__(self, addresses, check_host_name, ca, credential_source, provider):
         self._addresses = addresses
         self._check_host_name = check_host_name
         self._ca = ca
         self._credential_source = credential_source
         self._provider = provider
-        self._auth_username = auth_username
-        self._auth_password = auth_password
 
         self.__logger = logging.get_logger(__name__)
 
-    def new_instance(self, access_token=None, session_access_token=None, gateway_username=None, gateway_password=None):
+    def new_instance(self, access_token=None, session_access_token=None, auth_username=None, auth_password=None):
         if access_token is not None:
             self.__logger.debug("Using exisiting access token to authenticate")
             auth_params = dict(access_token=access_token)
@@ -78,18 +76,12 @@ class SafeguardClientFactory(object):
                 raise SafeguardException("Access token is missing from session cookie")
             else:
                 auth_params = dict(access_token=session_access_token)
-        elif self._credential_source == "explicit":
-            self.__logger.debug("Using explictly configured proxy user to authenticate")
-            if self._auth_username is None or self._auth_password is None:
-                raise SafeguardException("Missing username or password")
+        elif self._credential_source in ("explicit", "gateway"):
+            self.__logger.debug(f"Using authentication method: {self._credential_source}")
+            if auth_username is None or auth_password is None:
+                raise SafeguardException("Missing authentication username or password")
             else:
-                auth_params = dict(auth_username=self._auth_username, auth_password=self._auth_password)
-        elif self._credential_source == "gateway":
-            self.__logger.debug("Using gateway user to authenticate")
-            if gateway_username is None or gateway_password is None:
-                raise SafeguardException("Missing gateway credential")
-            else:
-                auth_params = dict(auth_username=gateway_username, auth_password=gateway_password)
+                auth_params = dict(auth_username=auth_username, auth_password=auth_password)
         else:
             raise SafeguardException("Invalid credential source: {}".format(self._credential_source))
 
@@ -112,8 +104,6 @@ class SafeguardClientFactory(object):
             ca=config.get("safeguard", "ca"),
             credential_source=compatible_auth_parameter_get("use_credential"),
             provider=compatible_auth_parameter_get("provider"),
-            auth_username=compatible_auth_parameter_get("username"),
-            auth_password=compatible_auth_parameter_get("password"),
         )
 
 
