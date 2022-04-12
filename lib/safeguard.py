@@ -120,10 +120,19 @@ def with_authentication(method):
                 self.authenticate(force=True)
                 return method(self, *args, **kwargs)
             else:
-                error = json.loads(err.fp.read())
+                error =  __decode_error(err.fp.read())
                 raise SafeguardException("Request failed; Details: {} {}".format(err, error))
 
     return wrapper
+
+
+def __decode_error(err):
+    try:
+        error = json.loads(err)
+    except json.JSONDecodeError as e:
+        print(f"Error while converting message to json: {e}")  # I cannot pass down the logger here
+        error = ""
+    return error
 
 
 def lowercase(value):
@@ -202,7 +211,7 @@ class SafeguardClient(object):
         return Account(asset_id, account_id)
 
     def _list_assets(self):
-        return self._get("Me/RequestableAssets")
+        return self._get("Me/AccessRequestAssets")
 
     def _find_asset(self, asset_identifier):
         assets = self._list_assets()
@@ -211,14 +220,16 @@ class SafeguardClient(object):
                 return asset["Id"]
         raise SafeguardException("Cannot find asset '{}'".format(asset_identifier))
 
-    def _list_accounts(self, asset_id):
-        return self._get("Me/RequestableAssets/{}/Accounts".format(asset_id))
+    def _list_entitlements(self):
+        return self._get("Me/RequestEntitlements")
 
     def _find_account(self, asset_id, account_name):
-        accounts = self._list_accounts(asset_id)
-        for account in accounts:
-            if lowercase(account_name) == lowercase(account["Name"]):
-                return account["Id"]
+        entitlements = self._list_entitlements()
+        for ent in entitlements:
+            asset_obj = ent.get("System") or ent.get("Asset", {})
+            if asset_obj["Id"] == asset_id:
+                if lowercase(account_name) == lowercase(ent["Account"]["Name"]):
+                    return ent["Account"]["Id"]
         raise SafeguardException("Cannot find account '{}'".format(account_name))
 
     def _make_access_request(self, account):
@@ -256,6 +267,7 @@ class SafeguardClient(object):
         return self._do_request(url=url, headers=headers, data=post_data)
 
     def _do_request(self, url, headers={}, data=None):
+        self.__logger.debug("Sending request to: %s", url)
         response = self.http_client.make_request(url=url, headers=headers, data=data)
         raw_result = response.read()
         self.__logger.debug("Got response: %s", raw_result)
@@ -266,7 +278,7 @@ class SafeguardClient(object):
         return {"authorization": "Bearer {}".format(token)}
 
     def _build_url(self, resource, parameters=()):
-        url = "https://{}/service/core/v2/{}".format(self.address, resource)
+        url = "https://{}/service/core/v4/{}".format(self.address, resource)
         if parameters:
             url += "/?" + urllib.parse.urlencode(parameters)
         return url

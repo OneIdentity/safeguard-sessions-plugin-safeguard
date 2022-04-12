@@ -38,11 +38,11 @@ class StubHttpClient(object):
 def test_get_account_with_different_casing():
     http_client = StubHttpClient(
         {
-            "https://the-address/service/core/v2/Me/RequestableAssets": json.dumps(
+            "https://the-address/service/core/v4/Me/AccessRequestAssets": json.dumps(
                 [{"NetworkAddress": None, "Name": "the.asset", "Id": "the-asset-id"}]
             ),
-            "https://the-address/service/core/v2/Me/RequestableAssets/the-asset-id/Accounts": json.dumps(
-                [{"Name": "Thomas.Testman", "Id": "the-account-id"}]
+            "https://the-address/service/core/v4/Me/RequestEntitlements": json.dumps(
+                [{"Account": {"Name": "Thomas.Testman", "Id": "the-account-id"}, "System": {"Id": "the-asset-id"}}]
             ),
         }
     )

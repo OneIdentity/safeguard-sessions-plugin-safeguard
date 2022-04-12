@@ -50,6 +50,24 @@ class SafeguardPlugin(CredentialStorePlugin):
     def do_get_password_list(self):
         return self._get_credential("password")
 
+    def do_get_remote_app_credentials(self):
+        self.logger.info(
+            "Trying to checkout password for RemoteApp Injection. Asset: %s, Account: %s",
+            self.remote_app_asset,
+            self.remote_app_account
+        )
+        try:
+            credential = self._get_credential_for_asset("password", self.remote_app_asset, self.remote_app_account)
+            return {"passwords": [credential]}
+        except SafeguardException as exc:
+            self.logger.error(
+                "Error checking out %s for %s@%s: '%s'", "password",
+                self.remote_app_account,
+                self.remote_app_asset,
+                exc
+            )
+            return None
+
     def domain_asset_mapping_with_suffix(self):
         server_domain = (
             f"{self.connection.server_domain}.{self.domain_suffix}"
@@ -70,22 +88,24 @@ class SafeguardPlugin(CredentialStorePlugin):
         except SafeguardException as exc:
             self.logger.error("Error checking out %s for %s@%s: '%s'", credential_type, self.account, self.asset, exc)
 
-    def _get_credential_for_asset(self, credential_type):
+    def _get_credential_for_asset(self, credential_type, asset=None, account=None):
+        c_asset = asset or self.asset
+        c_account = account or self.account
         safeguard = self._make_safeguard_instance()
-        account_id = safeguard.get_account(self.asset, self.account)
+        account_id = safeguard.get_account(c_asset, c_account)
         credential, access_request_id = safeguard.checkout_credential(account_id, credential_type)
-        self.logger.info("Found %s for %s@%s", credential_type, self.account, self.asset)
-        self.access_request_id = access_request_id
+        self.logger.info("Found %s for %s@%s", credential_type, c_account, c_asset)
+        self.access_request_id.append(access_request_id)
         self.access_token = safeguard.access_token
         return credential
 
     def do_check_in_credential(self):
         try:
             self.logger.debug("Checking in credential")
-            if self.access_request_id is None:
+            if not self.access_request_id:
                 raise SafeguardException("Missing access_request_id")
             safeguard = self._make_safeguard_instance()
-            safeguard.checkin_credential(self.access_request_id)
+            [safeguard.checkin_credential(request_id) for request_id in self.access_request_id]
         except SafeguardException as exc:
             self.logger.error("Error checking in credential %s", exc)
             raise exc
@@ -111,7 +131,7 @@ class SafeguardPlugin(CredentialStorePlugin):
 
     @cookie_property
     def access_request_id(self):
-        return None
+        return []
 
     @cookie_property
     def access_token(self):

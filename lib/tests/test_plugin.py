@@ -93,7 +93,7 @@ def test_get_password_list_returns_the_correct_response(explicit_config, dummy_s
     assert_plugin_hook_result(
         result,
         {
-            "cookie": {"access_token": "the_access_token", "access_request_id": "the_access_request_id"},
+    "cookie": {"access_token": "the_access_token", "access_request_id": ["the_access_request_id"]},
             "passwords": ["the_password"],
         },
     )
