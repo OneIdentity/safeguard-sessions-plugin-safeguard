@@ -1,5 +1,11 @@
 4.0.0 2021-12-16
 
+IMPORTANT
+
+This plugin is not backward compatible!
+
+Only tested with SPS 6.13 and SPP 6.12 and 6.13
+
 Add new hook implementation to get passwords for RemoteApp Injection
 
 3.0.0 2020-08-18
